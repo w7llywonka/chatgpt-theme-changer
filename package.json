@@ -1,0 +1,56 @@
+{
+  "name": "chatgpt-theme-studio",
+  "version": "1.0.1",
+  "description": "A reversible custom background companion for the ChatGPT desktop app.",
+  "main": "main.cjs",
+  "author": "w7llywonka",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/w7llywonka/chatgpt-theme-changer.git"
+  },
+  "homepage": "https://github.com/w7llywonka/chatgpt-theme-changer#readme",
+  "scripts": {
+    "icon": "node scripts/render-icon.cjs",
+    "start": "electron .",
+    "test": "node --test",
+    "test:e2e": "node scripts/e2e-chatgpt.cjs",
+    "test:e2e:restart": "node scripts/e2e-restart-chatgpt.cjs",
+    "dist": "electron-builder --win portable"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "electron": "^44.4.3",
+    "electron-builder": "^26.0.12",
+    "sharp": "^0.35.4"
+  },
+  "build": {
+    "appId": "studio.chatgpt.theme",
+    "productName": "ChatGPT Theme Studio",
+    "asar": true,
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "lib/**/*",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "ChatGPT-Theme-Studio-${version}.exe"
+    }
+  }
+}

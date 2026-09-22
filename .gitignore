@@ -1,0 +1,8 @@
+node_modules/
+dist/
+build/e2e-*.json
+*.log
+.DS_Store
+Thumbs.db
+AGENTS.md
+sources/
