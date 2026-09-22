@@ -1,6 +1,20 @@
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 
+const EDITOR_DEFAULTS = Object.freeze({
+  backgroundUrl: "https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?auto=format&fit=crop&w=2400&q=88",
+  fit: "cover",
+  position: "center",
+  panelColor: "#111315",
+  accent: "#d7ff4f",
+  dim: 46,
+  blur: 0,
+  panelOpacity: 78,
+  vignette: 35,
+});
+
+const ACCESSIBILITY_KEY = "theme-studio-accessibility-v1";
+
 const elements = {
   form: $("#themeForm"),
   backgroundUrl: $("#backgroundUrl"),
@@ -24,7 +38,13 @@ const elements = {
   statusPill: $("#statusPill"),
   applyButton: $("#applyButton"),
   disableButton: $("#disableButton"),
+  resetButton: $("#resetButton"),
   toast: $("#toast"),
+  accessibilityDialog: $("#accessibilityDialog"),
+  openAccessibility: $("#openAccessibility"),
+  closeAccessibility: $("#closeAccessibility"),
+  highContrast: $("#highContrast"),
+  reduceMotion: $("#reduceMotion"),
 };
 
 let currentStatus = null;
@@ -66,21 +86,29 @@ function setTheme(theme) {
   elements.blur.value = theme.blur ?? 0;
   elements.panelOpacity.value = theme.panelOpacity ?? 78;
   elements.vignette.value = theme.vignette ?? 35;
-  $$("[data-fit]").forEach((button) => button.classList.toggle("is-active", button.dataset.fit === elements.fit.value));
+  $$('[data-fit]').forEach((button) => {
+    const selected = button.dataset.fit === elements.fit.value;
+    button.classList.toggle("is-active", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
   updatePreview();
 }
 
 function updateRange(range) {
   const minimum = Number(range.min || 0);
   const maximum = Number(range.max || 100);
-  const progress = ((Number(range.value) - minimum) / (maximum - minimum)) * 100;
+  const value = Number(range.value);
+  const progress = ((value - minimum) / (maximum - minimum)) * 100;
   range.style.setProperty("--progress", `${progress}%`);
+  range.setAttribute("aria-valuetext", range.id === "blur" ? `${value} pixels` : `${value} percent`);
 }
 
 function updatePreview() {
   const theme = getTheme();
+  const previewImage = theme.backgroundUrl ? `url(${JSON.stringify(theme.backgroundUrl)})` : "none";
   document.documentElement.style.setProperty("--accent", theme.accent);
-  elements.preview.style.setProperty("--preview-image", theme.backgroundUrl ? `url(${JSON.stringify(theme.backgroundUrl)})` : "none");
+  document.documentElement.style.setProperty("--studio-image", previewImage);
+  elements.preview.style.setProperty("--preview-image", previewImage);
   elements.preview.style.setProperty("--preview-dim", (theme.dim / 100).toFixed(2));
   elements.preview.style.setProperty("--preview-vignette", (theme.vignette / 100).toFixed(2));
   elements.preview.style.setProperty("--preview-blur", `${theme.blur}px`);
@@ -106,31 +134,35 @@ let validationSequence = 0;
 function validateImage(url) {
   const sequence = ++validationSequence;
   elements.urlHint.classList.remove("is-error");
+  elements.backgroundUrl.removeAttribute("aria-invalid");
   if (!url) {
-    elements.imageState.textContent = "ADD AN IMAGE";
+    elements.imageState.textContent = "Add an image";
+    elements.urlHint.textContent = "Direct links work best. Local images never leave this computer.";
     return;
   }
   if (!url.startsWith("https://") && !url.startsWith("data:image/")) {
-    elements.urlHint.textContent = "Use an HTTPS image link.";
+    elements.urlHint.textContent = "Use a complete HTTPS image link.";
     elements.urlHint.classList.add("is-error");
-    elements.imageState.textContent = "LINK NEEDED";
+    elements.backgroundUrl.setAttribute("aria-invalid", "true");
+    elements.imageState.textContent = "Link needed";
     return;
   }
 
-  elements.imageState.textContent = "LOADING…";
+  elements.imageState.textContent = "Loading";
   const image = new Image();
   image.onload = () => {
     if (sequence !== validationSequence) return;
-    elements.imageState.textContent = localImageName ? localImageName.toUpperCase() : "IMAGE READY";
+    elements.imageState.textContent = localImageName || "Image ready";
     elements.urlHint.textContent = localImageName
-      ? "Saved locally inside your Theme Studio settings."
-      : "Direct HTTPS links work best. Local files stay on this PC.";
+      ? "Saved inside Theme Studio settings on this computer."
+      : "Image loaded. Direct links work best; local files stay local.";
   };
   image.onerror = () => {
     if (sequence !== validationSequence) return;
-    elements.imageState.textContent = "CHECK LINK";
-    elements.urlHint.textContent = "That image did not load in the preview. Try a direct image link.";
+    elements.imageState.textContent = "Check link";
+    elements.urlHint.textContent = "That image did not load. Try a direct image URL or choose a local file.";
     elements.urlHint.classList.add("is-error");
+    elements.backgroundUrl.setAttribute("aria-invalid", "true");
   };
   image.src = url;
 }
@@ -139,8 +171,10 @@ function showToast(message, error = false) {
   clearTimeout(toastTimer);
   elements.toast.textContent = message;
   elements.toast.classList.toggle("is-error", error);
+  elements.toast.setAttribute("role", error ? "alert" : "status");
+  elements.toast.setAttribute("aria-live", error ? "assertive" : "polite");
   elements.toast.classList.add("is-visible");
-  toastTimer = setTimeout(() => elements.toast.classList.remove("is-visible"), 4200);
+  toastTimer = setTimeout(() => elements.toast.classList.remove("is-visible"), 4800);
 }
 
 function renderStatus(status) {
@@ -150,19 +184,19 @@ function renderStatus(status) {
 
   if (status.connected) {
     elements.statusPill.classList.add("is-live");
-    label.textContent = status.enabled ? "LIVE" : "CONNECTED";
+    label.textContent = status.enabled ? "Live" : "Connected";
     elements.applyButton.querySelector("span").textContent = "Apply live";
   } else if (status.running) {
     elements.statusPill.classList.add("is-off");
-    label.textContent = "RESTART NEEDED";
-    elements.applyButton.querySelector("span").textContent = "Restart ChatGPT + apply";
+    label.textContent = "Restart needed";
+    elements.applyButton.querySelector("span").textContent = "Restart + apply";
   } else if (status.installed) {
     elements.statusPill.classList.add("is-off");
-    label.textContent = "READY";
-    elements.applyButton.querySelector("span").textContent = "Open ChatGPT + apply";
+    label.textContent = "Ready";
+    elements.applyButton.querySelector("span").textContent = "Open + apply";
   } else {
     elements.statusPill.classList.add("is-off");
-    label.textContent = "APP NOT FOUND";
+    label.textContent = "App not found";
   }
 }
 
@@ -170,8 +204,41 @@ async function refreshStatus() {
   try {
     renderStatus(await window.themeStudio.getStatus());
   } catch {
-    // Leave the last known state visible.
+    // Preserve the last useful status if a poll races an app restart.
   }
+}
+
+function readAccessibilityPreferences() {
+  try {
+    return {
+      textScale: "100",
+      highContrast: false,
+      reduceMotion: false,
+      ...JSON.parse(localStorage.getItem(ACCESSIBILITY_KEY) || "{}"),
+    };
+  } catch {
+    return { textScale: "100", highContrast: false, reduceMotion: false };
+  }
+}
+
+function applyAccessibilityPreferences(preferences, save = true) {
+  const textScale = ["100", "115", "130"].includes(String(preferences.textScale))
+    ? String(preferences.textScale)
+    : "100";
+  document.documentElement.dataset.textScale = textScale;
+  document.body.classList.toggle("high-contrast", Boolean(preferences.highContrast));
+  document.body.classList.toggle("reduce-motion", Boolean(preferences.reduceMotion));
+  elements.highContrast.checked = Boolean(preferences.highContrast);
+  elements.reduceMotion.checked = Boolean(preferences.reduceMotion);
+  $$('[data-text-scale]').forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.textScale === textScale));
+  });
+  if (save) localStorage.setItem(ACCESSIBILITY_KEY, JSON.stringify({ ...preferences, textScale }));
+}
+
+function openAccessibilityDialog() {
+  if (!elements.accessibilityDialog.open) elements.accessibilityDialog.showModal();
+  elements.closeAccessibility.focus();
 }
 
 elements.form.addEventListener("input", () => {
@@ -185,11 +252,16 @@ elements.backgroundUrl.addEventListener("input", () => {
   localImageName = null;
 });
 
-$$("[data-fit]").forEach((button) => {
+$$('[data-fit]').forEach((button) => {
   button.addEventListener("click", () => {
     elements.fit.value = button.dataset.fit;
-    $$("[data-fit]").forEach((item) => item.classList.toggle("is-active", item === button));
+    $$('[data-fit]').forEach((item) => {
+      const selected = item === button;
+      item.classList.toggle("is-active", selected);
+      item.setAttribute("aria-pressed", String(selected));
+    });
     updatePreview();
+    if (initialized) window.themeStudio.save(getTheme()).catch(() => {});
   });
 });
 
@@ -200,8 +272,20 @@ elements.chooseFile.addEventListener("click", async () => {
     localImageName = result.name;
     elements.backgroundUrl.value = result.dataUrl;
     updatePreview();
+    await window.themeStudio.save(getTheme());
   } catch (error) {
     showToast(error.message || "Couldn’t open that image.", true);
+  }
+});
+
+elements.resetButton.addEventListener("click", async () => {
+  localImageName = null;
+  setTheme(EDITOR_DEFAULTS);
+  try {
+    await window.themeStudio.save(getTheme());
+    showToast("Controls reset to the default theme.");
+  } catch (error) {
+    showToast(error.message || "Couldn’t reset the controls.", true);
   }
 });
 
@@ -214,6 +298,7 @@ elements.form.addEventListener("submit", async (event) => {
   }
 
   elements.applyButton.disabled = true;
+  elements.applyButton.setAttribute("aria-busy", "true");
   try {
     const result = await window.themeStudio.activate(getTheme());
     if (result.cancelled) {
@@ -226,6 +311,7 @@ elements.form.addEventListener("submit", async (event) => {
     showToast(error.message || "Couldn’t apply the theme.", true);
   } finally {
     elements.applyButton.disabled = false;
+    elements.applyButton.removeAttribute("aria-busy");
   }
 });
 
@@ -235,11 +321,42 @@ elements.disableButton.addEventListener("click", async () => {
     showToast(currentStatus?.connected ? "Custom background removed." : "Theme disabled for the next launch.");
     await refreshStatus();
   } catch (error) {
-    showToast(error.message || "Couldn’t disable the theme.", true);
+    showToast(error.message || "Couldn’t remove the theme.", true);
+  }
+});
+
+elements.openAccessibility.addEventListener("click", openAccessibilityDialog);
+elements.closeAccessibility.addEventListener("click", () => elements.accessibilityDialog.close());
+elements.accessibilityDialog.addEventListener("click", (event) => {
+  if (event.target === elements.accessibilityDialog) elements.accessibilityDialog.close();
+});
+
+$$('[data-text-scale]').forEach((button) => {
+  button.addEventListener("click", () => {
+    const preferences = readAccessibilityPreferences();
+    applyAccessibilityPreferences({ ...preferences, textScale: button.dataset.textScale });
+  });
+});
+
+elements.highContrast.addEventListener("change", () => {
+  const preferences = readAccessibilityPreferences();
+  applyAccessibilityPreferences({ ...preferences, highContrast: elements.highContrast.checked });
+});
+
+elements.reduceMotion.addEventListener("change", () => {
+  const preferences = readAccessibilityPreferences();
+  applyAccessibilityPreferences({ ...preferences, reduceMotion: elements.reduceMotion.checked });
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.altKey && event.key.toLowerCase() === "a") {
+    event.preventDefault();
+    openAccessibilityDialog();
   }
 });
 
 async function initialize() {
+  applyAccessibilityPreferences(readAccessibilityPreferences(), false);
   try {
     const { theme } = await window.themeStudio.getState();
     setTheme(theme);

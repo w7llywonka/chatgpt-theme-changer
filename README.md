@@ -1,6 +1,6 @@
 # ChatGPT Theme Studio
 
-A Windows companion that adds custom image backgrounds, glassy panels, and accent colors to the ChatGPT desktop app—without modifying ChatGPT's installed files.
+A polished, accessible Windows companion that adds custom image backgrounds, glassy panels, and accent colors to the ChatGPT desktop app—without modifying ChatGPT's installed files.
 
 > [!IMPORTANT]
 > This is an unofficial runtime customization. ChatGPT does not currently expose a supported background-image setting, so a future desktop-app update may require a compatibility fix.
@@ -17,7 +17,20 @@ Download the portable `.exe` from the repository's [latest release](https://gith
 4. Choose **Apply to ChatGPT**.
 5. Approve the one-time ChatGPT restart. Any response currently generating will stop, but chats and account data are not changed.
 
-Keep Theme Studio open or minimized so it can reapply the theme to newly opened ChatGPT windows. Choose **Disable custom background** to remove the runtime style.
+Keep Theme Studio open or minimized so it can reapply the theme to newly opened ChatGPT windows. Choose **Remove theme** to remove the runtime style.
+
+## Accessibility
+
+Theme Studio is designed to work with a keyboard, screen reader, Windows High Contrast Mode, and enlarged interface text.
+
+- Press `Tab` to move through every control and use the arrow keys to adjust sliders.
+- Press `Alt+A` from anywhere in the app to open Accessibility settings.
+- Choose Default, Large, or Extra large interface text.
+- Turn on the app's high-contrast mode or reduced-motion mode. System reduced-motion and forced-color preferences are respected automatically.
+- Status changes, validation errors, and success messages are announced to assistive technology.
+- The editor reflows and remains scrollable in narrower windows instead of hiding controls.
+
+Accessibility preferences are stored locally and restored the next time Theme Studio opens.
 
 ## How it works
 

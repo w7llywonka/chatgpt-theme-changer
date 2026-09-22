@@ -361,18 +361,21 @@ function createWindow() {
   const iconPath = path.join(__dirname, "renderer", "icon.svg");
   const icon = nativeImage.createFromPath(iconPath);
   const screenshotTarget = process.env.THEME_STUDIO_SCREENSHOT_PATH?.trim();
+  const screenshotView = process.env.THEME_STUDIO_SCREENSHOT_VIEW?.trim();
+  const screenshotWidth = Number.parseInt(process.env.THEME_STUDIO_SCREENSHOT_WIDTH, 10);
+  const screenshotHeight = Number.parseInt(process.env.THEME_STUDIO_SCREENSHOT_HEIGHT, 10);
   mainWindow = new BrowserWindow({
-    width: 1180,
-    height: 790,
-    minWidth: 980,
-    minHeight: 680,
-    backgroundColor: "#0b0c0d",
+    width: screenshotTarget && screenshotWidth >= 720 ? screenshotWidth : 1320,
+    height: screenshotTarget && screenshotHeight >= 600 ? screenshotHeight : 860,
+    minWidth: 720,
+    minHeight: 600,
+    backgroundColor: "#050505",
     title: "ChatGPT Theme Studio",
     titleBarStyle: "hidden",
     titleBarOverlay: {
-      color: "#0b0c0d",
-      symbolColor: "#f2f3eb",
-      height: 44,
+      color: "#050505",
+      symbolColor: "#f7f7f2",
+      height: 58,
     },
     show: false,
     icon: icon.isEmpty() ? undefined : icon,
@@ -403,12 +406,20 @@ function createWindow() {
     mainWindow.webContents.once("did-finish-load", () => {
       setTimeout(async () => {
         try {
+          if (screenshotView === "accessibility") {
+            await mainWindow.webContents.executeJavaScript("document.querySelector('#accessibilityDialog').showModal()");
+          } else if (screenshotView === "workspace") {
+            await mainWindow.webContents.executeJavaScript("document.querySelector('#theme-controls').scrollIntoView()");
+          }
           await mainWindow.webContents.executeJavaScript("document.getAnimations().forEach((animation) => animation.finish())");
           await new Promise((resolve) => setTimeout(resolve, 80));
           const image = await mainWindow.capturePage();
           await fs.writeFile(screenshotTarget, image.toPNG());
           const visualState = await mainWindow.webContents.executeJavaScript(`
             ({
+              viewport: { width: innerWidth, height: innerHeight, scrollWidth: document.documentElement.scrollWidth },
+              accessibilityDialogOpen: document.querySelector("#accessibilityDialog").open,
+              focusableControls: document.querySelectorAll("a[href], button, input:not([type='hidden'])").length,
               samples: [[800, 300], [600, 160]].map(([x, y]) => {
                 const element = document.elementFromPoint(x, y);
                 return { x, y, tag: element?.tagName, className: element?.className };

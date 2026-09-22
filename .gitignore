@@ -1,6 +1,8 @@
 node_modules/
 dist/
 build/e2e-*.json
+build/accessibility-*.png*
+build/responsive-*.png*
 *.log
 .DS_Store
 Thumbs.db
