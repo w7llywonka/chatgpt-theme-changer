@@ -48,6 +48,15 @@ test("accessibility controls are keyboard discoverable", () => {
   assert.match(css, /@media \(forced-colors: active\)/);
 });
 
+test("the configuration sidebar uses accessible tabs and labeled feature controls", () => {
+  assert.match(html, /role="tablist" aria-label="Theme configuration sections"/);
+  assert.equal((html.match(/role="tab"/g) || []).length, 3);
+  assert.equal((html.match(/role="tabpanel"/g) || []).length, 3);
+  assert.match(html, /<label class="select-control" for="uiFont">/);
+  assert.match(html, /<label class="select-control" for="codeFont">/);
+  assert.match(html, /<label class="config-switch" for="soundEnabled">/);
+});
+
 test("core interface colors exceed WCAG AA text contrast", () => {
   assert.ok(contrast("#f2f5f0", "#080a08") >= 4.5, "primary text contrast");
   assert.ok(contrast("#969c96", "#080a08") >= 4.5, "secondary text contrast");

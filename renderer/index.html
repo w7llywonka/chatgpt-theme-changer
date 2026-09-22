@@ -74,81 +74,183 @@
           </div>
 
           <form id="themeForm" novalidate>
-            <fieldset class="control-card source-card">
-              <legend>Background source</legend>
-              <label for="backgroundUrl">Direct HTTPS image link</label>
-              <div class="url-row">
-                <input
-                  id="backgroundUrl"
-                  name="backgroundUrl"
-                  type="url"
-                  inputmode="url"
-                  autocomplete="off"
-                  spellcheck="false"
-                  aria-describedby="urlHint"
-                  placeholder="https://example.com/image.jpg"
-                />
-                <button id="chooseFile" class="file-button" type="button" aria-label="Choose a local background image">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h6l1.6-2H20v13H4v-11Z"/><path d="m8 15 2.5-2.6 2 1.8 1.8-2 2.7 2.8"/></svg>
-                  <span>Browse</span>
-                </button>
-              </div>
-              <p id="urlHint" class="field-hint">Direct links work best. Local images never leave this computer.</p>
-            </fieldset>
-
-            <div class="control-columns">
-              <fieldset class="control-card">
-                <legend>Image layout</legend>
-                <span class="field-label" id="fit-label">Fit inside ChatGPT</span>
-                <div class="segmented" role="group" aria-labelledby="fit-label">
-                  <button type="button" data-fit="cover" class="is-active" aria-pressed="true">Cover</button>
-                  <button type="button" data-fit="contain" aria-pressed="false">Contain</button>
-                  <button type="button" data-fit="stretch" aria-pressed="false">Stretch</button>
-                </div>
-                <input id="fit" name="fit" type="hidden" value="cover" />
-              </fieldset>
-
-              <fieldset class="control-card color-card">
-                <legend>Color system</legend>
-                <div class="color-grid">
-                  <label class="color-control" for="panelColor">
-                    <span>Glass tint</span>
-                    <span class="color-value"><input id="panelColor" name="panelColor" type="color" value="#111315" /><output id="panelColorText">#111315</output></span>
-                  </label>
-                  <label class="color-control" for="accent">
-                    <span>Accent</span>
-                    <span class="color-value"><input id="accent" name="accent" type="color" value="#d7ff4f" /><output id="accentText">#D7FF4F</output></span>
-                  </label>
-                </div>
-              </fieldset>
+            <div class="config-tabs" role="tablist" aria-label="Theme configuration sections">
+              <button id="backgroundTab" type="button" role="tab" aria-selected="true" aria-controls="configBackground" tabindex="0" data-config-tab="background">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4z"/><path d="m7 15 3-3 2.4 2.2 2.2-2.5L18 15"/></svg>
+                Background
+              </button>
+              <button id="typeTab" type="button" role="tab" aria-selected="false" aria-controls="configType" tabindex="-1" data-config-tab="type">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M12 6v12M8.5 18h7"/></svg>
+                Type
+              </button>
+              <button id="soundTab" type="button" role="tab" aria-selected="false" aria-controls="configSound" tabindex="-1" data-config-tab="sound">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10v4h3l4 3V7L8 10H5Z"/><path d="M15 9.5c1.4 1.4 1.4 3.6 0 5M17.5 7c2.8 2.8 2.8 7.2 0 10"/></svg>
+                Sound
+              </button>
             </div>
 
-            <fieldset class="control-card adjustment-card">
-              <legend>Fine adjustments</legend>
-              <div class="slider-grid">
-                <label class="slider-row" for="dim">
-                  <span><b>Image dim</b><output id="dimValue" for="dim">46%</output></span>
-                  <input id="dim" name="dim" type="range" min="0" max="85" value="46" aria-valuetext="46 percent" />
-                </label>
-                <label class="slider-row" for="panelOpacity">
-                  <span><b>Panel glass</b><output id="panelOpacityValue" for="panelOpacity">78%</output></span>
-                  <input id="panelOpacity" name="panelOpacity" type="range" min="25" max="100" value="78" aria-valuetext="78 percent" />
-                </label>
-                <label class="slider-row" for="blur">
-                  <span><b>Image blur</b><output id="blurValue" for="blur">0px</output></span>
-                  <input id="blur" name="blur" type="range" min="0" max="24" value="0" aria-valuetext="0 pixels" />
-                </label>
-                <label class="slider-row" for="vignette">
-                  <span><b>Edge vignette</b><output id="vignetteValue" for="vignette">35%</output></span>
-                  <input id="vignette" name="vignette" type="range" min="0" max="85" value="35" aria-valuetext="35 percent" />
-                </label>
-              </div>
-            </fieldset>
+            <div class="config-panel-stack">
+              <section id="configBackground" class="config-section" role="tabpanel" aria-labelledby="backgroundTab" data-config-panel="background">
+                <fieldset class="control-card source-card">
+                  <legend>Background source</legend>
+                  <label for="backgroundUrl">Direct HTTPS image link</label>
+                  <div class="url-row">
+                    <input
+                      id="backgroundUrl"
+                      name="backgroundUrl"
+                      type="url"
+                      inputmode="url"
+                      autocomplete="off"
+                      spellcheck="false"
+                      aria-describedby="urlHint"
+                      placeholder="https://example.com/image.jpg"
+                    />
+                    <button id="chooseFile" class="file-button" type="button" aria-label="Choose a local background image">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h6l1.6-2H20v13H4v-11Z"/><path d="m8 15 2.5-2.6 2 1.8 1.8-2 2.7 2.8"/></svg>
+                      <span>Browse</span>
+                    </button>
+                  </div>
+                  <p id="urlHint" class="field-hint">Direct links work best. Local images never leave this computer.</p>
+                </fieldset>
+
+                <div class="control-columns">
+                  <fieldset class="control-card">
+                    <legend>Image layout</legend>
+                    <span class="field-label" id="fit-label">Fit inside ChatGPT</span>
+                    <div class="segmented" role="group" aria-labelledby="fit-label">
+                      <button type="button" data-fit="cover" class="is-active" aria-pressed="true">Cover</button>
+                      <button type="button" data-fit="contain" aria-pressed="false">Contain</button>
+                      <button type="button" data-fit="stretch" aria-pressed="false">Stretch</button>
+                    </div>
+                    <input id="fit" name="fit" type="hidden" value="cover" />
+                  </fieldset>
+
+                  <fieldset class="control-card color-card">
+                    <legend>Color system</legend>
+                    <div class="color-grid">
+                      <label class="color-control" for="panelColor">
+                        <span>Glass tint</span>
+                        <span class="color-value"><input id="panelColor" name="panelColor" type="color" value="#111315" /><output id="panelColorText">#111315</output></span>
+                      </label>
+                      <label class="color-control" for="accent">
+                        <span>Accent</span>
+                        <span class="color-value"><input id="accent" name="accent" type="color" value="#d7ff4f" /><output id="accentText">#D7FF4F</output></span>
+                      </label>
+                    </div>
+                  </fieldset>
+                </div>
+
+                <fieldset class="control-card adjustment-card">
+                  <legend>Fine adjustments</legend>
+                  <div class="slider-grid">
+                    <label class="slider-row" for="dim">
+                      <span><b>Image dim</b><output id="dimValue" for="dim">46%</output></span>
+                      <input id="dim" name="dim" type="range" min="0" max="85" value="46" aria-valuetext="46 percent" />
+                    </label>
+                    <label class="slider-row" for="panelOpacity">
+                      <span><b>Panel glass</b><output id="panelOpacityValue" for="panelOpacity">78%</output></span>
+                      <input id="panelOpacity" name="panelOpacity" type="range" min="25" max="100" value="78" aria-valuetext="78 percent" />
+                    </label>
+                    <label class="slider-row" for="blur">
+                      <span><b>Image blur</b><output id="blurValue" for="blur">0px</output></span>
+                      <input id="blur" name="blur" type="range" min="0" max="24" value="0" aria-valuetext="0 pixels" />
+                    </label>
+                    <label class="slider-row" for="vignette">
+                      <span><b>Edge vignette</b><output id="vignetteValue" for="vignette">35%</output></span>
+                      <input id="vignette" name="vignette" type="range" min="0" max="85" value="35" aria-valuetext="35 percent" />
+                    </label>
+                  </div>
+                </fieldset>
+              </section>
+
+              <section id="configType" class="config-section" role="tabpanel" aria-labelledby="typeTab" data-config-panel="type" hidden>
+                <fieldset class="control-card type-card">
+                  <legend>Font library</legend>
+                  <p class="panel-intro">Choose from fonts installed on this computer. Chat and code can have separate voices.</p>
+                  <div class="font-select-grid">
+                    <label class="select-control" for="uiFont">
+                      <span>Interface font</span>
+                      <select id="uiFont" name="uiFont">
+                        <option value="Aptos">Aptos</option>
+                        <option value="Segoe UI">Segoe UI</option>
+                        <option value="Georgia">Georgia</option>
+                      </select>
+                    </label>
+                    <label class="select-control" for="codeFont">
+                      <span>Code font</span>
+                      <select id="codeFont" name="codeFont">
+                        <option value="Cascadia Code">Cascadia Code</option>
+                        <option value="Consolas">Consolas</option>
+                      </select>
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="control-card adjustment-card">
+                  <legend>Type scale</legend>
+                  <div class="slider-grid type-sliders">
+                    <label class="slider-row" for="uiFontSize">
+                      <span><b>Interface size</b><output id="uiFontSizeValue" for="uiFontSize">16px</output></span>
+                      <input id="uiFontSize" name="uiFontSize" type="range" min="12" max="22" value="16" aria-valuetext="16 pixels" />
+                    </label>
+                    <label class="slider-row" for="codeFontSize">
+                      <span><b>Code size</b><output id="codeFontSizeValue" for="codeFontSize">14px</output></span>
+                      <input id="codeFontSize" name="codeFontSize" type="range" min="11" max="22" value="14" aria-valuetext="14 pixels" />
+                    </label>
+                    <label class="slider-row full-slider" for="lineHeight">
+                      <span><b>Reading line height</b><output id="lineHeightValue" for="lineHeight">160%</output></span>
+                      <input id="lineHeight" name="lineHeight" type="range" min="120" max="200" step="5" value="160" aria-valuetext="160 percent" />
+                    </label>
+                  </div>
+                </fieldset>
+
+                <div id="fontPreview" class="font-preview" aria-label="Font preview">
+                  <span>TYPE TEST / LIVE</span>
+                  <strong>Make every conversation unmistakably yours.</strong>
+                  <code>const finish = "clean";</code>
+                </div>
+              </section>
+
+              <section id="configSound" class="config-section" role="tabpanel" aria-labelledby="soundTab" data-config-panel="sound" hidden>
+                <fieldset class="control-card sound-card">
+                  <legend>Completion sound</legend>
+                  <label class="config-switch" for="soundEnabled">
+                    <span><b>Play when ChatGPT finishes</b><small>Runs locally after a response completes.</small></span>
+                    <input id="soundEnabled" name="soundEnabled" type="checkbox" role="switch" />
+                  </label>
+                </fieldset>
+
+                <fieldset class="control-card sound-picker">
+                  <legend>Sound style</legend>
+                  <div class="sound-options">
+                    <input class="visually-hidden" id="soundSoft" name="soundId" type="radio" value="soft" checked />
+                    <label for="soundSoft"><i aria-hidden="true">◡</i><span><b>Soft</b><small>Warm two-note chime</small></span></label>
+                    <input class="visually-hidden" id="soundGlass" name="soundId" type="radio" value="glass" />
+                    <label for="soundGlass"><i aria-hidden="true">◇</i><span><b>Glass</b><small>Bright and minimal</small></span></label>
+                    <input class="visually-hidden" id="soundPulse" name="soundId" type="radio" value="pulse" />
+                    <label for="soundPulse"><i aria-hidden="true">≋</i><span><b>Pulse</b><small>Three quick tones</small></span></label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="control-card sound-level-card">
+                  <legend>Level</legend>
+                  <label class="slider-row" for="soundVolume">
+                    <span><b>Volume</b><output id="soundVolumeValue" for="soundVolume">55%</output></span>
+                    <input id="soundVolume" name="soundVolume" type="range" min="0" max="100" value="55" aria-valuetext="55 percent" />
+                  </label>
+                  <button id="testSound" class="sound-test-button" type="button">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 8 7 4-7 4V8Z"/></svg>
+                    Test selected sound
+                  </button>
+                  <p class="field-hint">The sound follows ChatGPT’s response state. It does not read or store conversation content.</p>
+                </fieldset>
+              </section>
+            </div>
 
             <div class="action-dock">
               <div class="action-copy">
                 <span>Ready when you are</span>
-                <small>The first apply restarts ChatGPT once.</small>
+                <small>Changes save locally as you edit.</small>
               </div>
               <div class="action-buttons">
                 <button id="disableButton" class="secondary-button" type="button">Remove theme</button>

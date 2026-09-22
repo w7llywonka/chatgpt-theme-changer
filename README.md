@@ -1,6 +1,6 @@
 # ChatGPT Theme Studio
 
-A polished, accessible Windows companion that adds custom image backgrounds, glassy panels, and accent colors to the ChatGPT desktop app—without modifying ChatGPT's installed files.
+A polished, accessible Windows companion that adds custom image backgrounds, glassy panels, typography, and completion sounds to the ChatGPT desktop app—without modifying ChatGPT's installed files.
 
 > [!IMPORTANT]
 > This is an unofficial runtime customization. ChatGPT does not currently expose a supported background-image setting, so a future desktop-app update may require a compatibility fix.
@@ -12,10 +12,12 @@ Download the portable `.exe` from the repository's [latest release](https://gith
 ## Use it
 
 1. Open **ChatGPT Theme Studio**.
-2. Paste a direct HTTPS image link or choose a local PNG, JPG, WebP, or GIF.
-3. Adjust the fit, dimming, blur, vignette, panel tint, opacity, and accent color.
-4. Choose **Apply to ChatGPT**.
-5. Approve the one-time ChatGPT restart. Any response currently generating will stop, but chats and account data are not changed.
+2. Use the side-panel tabs to configure **Background**, **Type**, and **Sound**.
+3. Paste a direct HTTPS image link or choose a local PNG, JPG, WebP, or GIF.
+4. Choose separate installed Windows fonts for the interface and code, then adjust font sizes and reading line height.
+5. Optionally enable a Soft, Glass, or Pulse completion sound and preview it before applying.
+6. Choose **Apply to ChatGPT**.
+7. Approve the one-time ChatGPT restart. Any response currently generating will stop, but chats and account data are not changed.
 
 Keep Theme Studio open or minimized so it can reapply the theme to newly opened ChatGPT windows. Choose **Remove theme** to remove the runtime style.
 
@@ -34,7 +36,7 @@ Accessibility preferences are stored locally and restored the next time Theme St
 
 ## How it works
 
-Theme Studio restarts ChatGPT with Chromium's debugging endpoint bound only to `127.0.0.1`, then injects one reversible `<style>` element into ChatGPT windows. It does not patch files under `WindowsApps`, change account data, or send theme data to a server.
+Theme Studio restarts ChatGPT with Chromium's debugging endpoint bound only to `127.0.0.1`, then injects one reversible `<style>` element into ChatGPT windows. When completion sounds are enabled, a local observer watches only ChatGPT's generating/not-generating interface state and synthesizes the selected tone on-device. It does not read conversation content, patch files under `WindowsApps`, change account data, or send theme data to a server.
 
 Because the local debugging endpoint is unauthenticated, do not change its host from `127.0.0.1` and do not expose port `9237` to another device.
 
@@ -81,5 +83,7 @@ The portable executable is written to `dist/`. Personal builds are unsigned, so 
 
 - Direct HTTPS image URLs are the most reliable; some hosts block image hotlinking.
 - Local images are stored as data URLs in Theme Studio's local settings.
+- The font menus show font families installed on the current Windows computer.
+- Completion detection follows ChatGPT's current response controls and may require a compatibility update if that interface changes.
 - The first application requires a ChatGPT restart.
 - ChatGPT updates can change internal surface styles or startup behavior.

@@ -22,6 +22,7 @@ let mainWindow = null;
 let currentTheme = { ...DEFAULT_THEME };
 let monitorTimer = null;
 let chatGptInstall = null;
+let installedFonts = null;
 let applying = false;
 const appliedTargets = new Map();
 
@@ -53,6 +54,30 @@ async function saveState(next) {
   await fs.mkdir(path.dirname(statePath()), { recursive: true });
   await fs.writeFile(statePath(), `${JSON.stringify(currentTheme, null, 2)}\n`, "utf8");
   return currentTheme;
+}
+
+async function listInstalledFonts() {
+  if (installedFonts) return installedFonts;
+  const fallback = ["Aptos", "Arial", "Bahnschrift", "Cascadia Code", "Consolas", "Georgia", "Segoe UI"];
+  const script = `
+    Add-Type -AssemblyName System.Drawing
+    $collection = New-Object System.Drawing.Text.InstalledFontCollection
+    $collection.Families.Name | Sort-Object -Unique | ConvertTo-Json -Compress
+  `;
+  try {
+    const { stdout } = await execFileAsync(
+      "powershell.exe",
+      powershellArgs(script),
+      { windowsHide: true, timeout: 15000 },
+    );
+    const parsed = JSON.parse(stdout.trim() || "[]");
+    const found = Array.isArray(parsed) ? parsed : [parsed];
+    installedFonts = [...new Set([...fallback, ...found.filter(Boolean)])]
+      .sort((first, second) => first.localeCompare(second));
+  } catch {
+    installedFonts = fallback;
+  }
+  return installedFonts;
 }
 
 function powershellArgs(script) {
@@ -184,7 +209,7 @@ async function applyThemeToTargets({ force = false } = {}) {
   applying = true;
   try {
     const css = buildThemeCss(currentTheme);
-    const expression = buildInstallExpression(css);
+    const expression = buildInstallExpression(css, currentTheme);
     const fingerprint = JSON.stringify(currentTheme);
     const targets = await getTargets();
     let applied = 0;
@@ -365,8 +390,8 @@ function createWindow() {
   const screenshotWidth = Number.parseInt(process.env.THEME_STUDIO_SCREENSHOT_WIDTH, 10);
   const screenshotHeight = Number.parseInt(process.env.THEME_STUDIO_SCREENSHOT_HEIGHT, 10);
   mainWindow = new BrowserWindow({
-    width: screenshotTarget && screenshotWidth >= 720 ? screenshotWidth : 1320,
-    height: screenshotTarget && screenshotHeight >= 600 ? screenshotHeight : 860,
+    width: screenshotTarget && screenshotWidth >= 720 ? screenshotWidth : 1460,
+    height: screenshotTarget && screenshotHeight >= 600 ? screenshotHeight : 900,
     minWidth: 720,
     minHeight: 600,
     backgroundColor: "#050505",
@@ -408,8 +433,13 @@ function createWindow() {
         try {
           if (screenshotView === "accessibility") {
             await mainWindow.webContents.executeJavaScript("document.querySelector('#accessibilityDialog').showModal()");
+          } else if (["type", "sound"].includes(screenshotView)) {
+            await mainWindow.webContents.executeJavaScript(`
+              document.querySelector('[data-config-tab="${screenshotView}"]').click();
+              window.scrollTo({ top: document.querySelector('#theme-controls').offsetTop, behavior: 'instant' });
+            `);
           } else if (screenshotView === "workspace") {
-            await mainWindow.webContents.executeJavaScript("document.querySelector('#theme-controls').scrollIntoView()");
+            await mainWindow.webContents.executeJavaScript("window.scrollTo({ top: document.querySelector('#theme-controls').offsetTop, behavior: 'instant' })");
           }
           await mainWindow.webContents.executeJavaScript("document.getAnimations().forEach((animation) => animation.finish())");
           await new Promise((resolve) => setTimeout(resolve, 80));
@@ -478,6 +508,8 @@ app.on("window-all-closed", () => {
 ipcMain.handle("theme:get-state", async () => ({ theme: currentTheme }));
 
 ipcMain.handle("theme:get-status", () => statusSnapshot());
+
+ipcMain.handle("theme:list-fonts", () => listInstalledFonts());
 
 ipcMain.handle("theme:save", async (_event, next) => ({
   theme: await saveState(next),

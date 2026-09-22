@@ -11,6 +11,14 @@ const EDITOR_DEFAULTS = Object.freeze({
   blur: 0,
   panelOpacity: 78,
   vignette: 35,
+  uiFont: "Aptos",
+  codeFont: "Cascadia Code",
+  uiFontSize: 16,
+  codeFontSize: 14,
+  lineHeight: 160,
+  soundEnabled: false,
+  soundId: "soft",
+  soundVolume: 55,
 });
 
 const ACCESSIBILITY_KEY = "theme-studio-accessibility-v1";
@@ -26,12 +34,24 @@ const elements = {
   blur: $("#blur"),
   panelOpacity: $("#panelOpacity"),
   vignette: $("#vignette"),
+  uiFont: $("#uiFont"),
+  codeFont: $("#codeFont"),
+  uiFontSize: $("#uiFontSize"),
+  codeFontSize: $("#codeFontSize"),
+  lineHeight: $("#lineHeight"),
+  soundEnabled: $("#soundEnabled"),
+  soundVolume: $("#soundVolume"),
   panelColorText: $("#panelColorText"),
   accentText: $("#accentText"),
   dimValue: $("#dimValue"),
   blurValue: $("#blurValue"),
   panelOpacityValue: $("#panelOpacityValue"),
   vignetteValue: $("#vignetteValue"),
+  uiFontSizeValue: $("#uiFontSizeValue"),
+  codeFontSizeValue: $("#codeFontSizeValue"),
+  lineHeightValue: $("#lineHeightValue"),
+  soundVolumeValue: $("#soundVolumeValue"),
+  fontPreview: $("#fontPreview"),
   preview: $("#preview"),
   urlHint: $("#urlHint"),
   imageState: $("#imageState"),
@@ -39,6 +59,7 @@ const elements = {
   applyButton: $("#applyButton"),
   disableButton: $("#disableButton"),
   resetButton: $("#resetButton"),
+  testSound: $("#testSound"),
   toast: $("#toast"),
   accessibilityDialog: $("#accessibilityDialog"),
   openAccessibility: $("#openAccessibility"),
@@ -74,6 +95,14 @@ function getTheme() {
     blur: Number(elements.blur.value),
     panelOpacity: Number(elements.panelOpacity.value),
     vignette: Number(elements.vignette.value),
+    uiFont: elements.uiFont.value,
+    codeFont: elements.codeFont.value,
+    uiFontSize: Number(elements.uiFontSize.value),
+    codeFontSize: Number(elements.codeFontSize.value),
+    lineHeight: Number(elements.lineHeight.value),
+    soundEnabled: elements.soundEnabled.checked,
+    soundId: $('[name="soundId"]:checked')?.value || "soft",
+    soundVolume: Number(elements.soundVolume.value),
   };
 }
 
@@ -86,6 +115,15 @@ function setTheme(theme) {
   elements.blur.value = theme.blur ?? 0;
   elements.panelOpacity.value = theme.panelOpacity ?? 78;
   elements.vignette.value = theme.vignette ?? 35;
+  elements.uiFont.value = theme.uiFont || EDITOR_DEFAULTS.uiFont;
+  elements.codeFont.value = theme.codeFont || EDITOR_DEFAULTS.codeFont;
+  elements.uiFontSize.value = theme.uiFontSize ?? EDITOR_DEFAULTS.uiFontSize;
+  elements.codeFontSize.value = theme.codeFontSize ?? EDITOR_DEFAULTS.codeFontSize;
+  elements.lineHeight.value = theme.lineHeight ?? EDITOR_DEFAULTS.lineHeight;
+  elements.soundEnabled.checked = Boolean(theme.soundEnabled);
+  elements.soundVolume.value = theme.soundVolume ?? EDITOR_DEFAULTS.soundVolume;
+  const soundChoice = $(`[name="soundId"][value="${theme.soundId || EDITOR_DEFAULTS.soundId}"]`);
+  if (soundChoice) soundChoice.checked = true;
   $$('[data-fit]').forEach((button) => {
     const selected = button.dataset.fit === elements.fit.value;
     button.classList.toggle("is-active", selected);
@@ -100,7 +138,8 @@ function updateRange(range) {
   const value = Number(range.value);
   const progress = ((value - minimum) / (maximum - minimum)) * 100;
   range.style.setProperty("--progress", `${progress}%`);
-  range.setAttribute("aria-valuetext", range.id === "blur" ? `${value} pixels` : `${value} percent`);
+  const usesPixels = ["blur", "uiFontSize", "codeFontSize"].includes(range.id);
+  range.setAttribute("aria-valuetext", usesPixels ? `${value} pixels` : `${value} percent`);
 }
 
 function updatePreview() {
@@ -115,6 +154,15 @@ function updatePreview() {
   elements.preview.style.setProperty("--preview-opacity", (theme.panelOpacity / 100).toFixed(2));
   elements.preview.style.setProperty("--preview-panel", hexToRgb(theme.panelColor));
   elements.preview.style.setProperty("--preview-fit", theme.fit === "stretch" ? "100% 100%" : theme.fit);
+  elements.preview.style.setProperty("--preview-ui-font", `${JSON.stringify(theme.uiFont)}, sans-serif`);
+  elements.preview.style.setProperty("--preview-code-font", `${JSON.stringify(theme.codeFont)}, monospace`);
+  elements.preview.style.setProperty("--preview-ui-size", `${theme.uiFontSize}px`);
+  elements.preview.style.setProperty("--preview-code-size", `${theme.codeFontSize}px`);
+  elements.preview.style.setProperty("--preview-line-height", (theme.lineHeight / 100).toFixed(2));
+  elements.fontPreview.style.fontFamily = `${JSON.stringify(theme.uiFont)}, sans-serif`;
+  elements.fontPreview.style.lineHeight = (theme.lineHeight / 100).toFixed(2);
+  elements.fontPreview.querySelector("code").style.fontFamily = `${JSON.stringify(theme.codeFont)}, monospace`;
+  elements.fontPreview.querySelector("code").style.fontSize = `${theme.codeFontSize}px`;
 
   elements.panelColorText.textContent = theme.panelColor.toUpperCase();
   elements.accentText.textContent = theme.accent.toUpperCase();
@@ -122,7 +170,20 @@ function updatePreview() {
   elements.blurValue.textContent = `${theme.blur}px`;
   elements.panelOpacityValue.textContent = `${theme.panelOpacity}%`;
   elements.vignetteValue.textContent = `${theme.vignette}%`;
-  [elements.dim, elements.blur, elements.panelOpacity, elements.vignette].forEach(updateRange);
+  elements.uiFontSizeValue.textContent = `${theme.uiFontSize}px`;
+  elements.codeFontSizeValue.textContent = `${theme.codeFontSize}px`;
+  elements.lineHeightValue.textContent = `${theme.lineHeight}%`;
+  elements.soundVolumeValue.textContent = `${theme.soundVolume}%`;
+  [
+    elements.dim,
+    elements.blur,
+    elements.panelOpacity,
+    elements.vignette,
+    elements.uiFontSize,
+    elements.codeFontSize,
+    elements.lineHeight,
+    elements.soundVolume,
+  ].forEach(updateRange);
 
   if (theme.backgroundUrl !== lastValidatedUrl) {
     lastValidatedUrl = theme.backgroundUrl;
@@ -241,6 +302,65 @@ function openAccessibilityDialog() {
   elements.closeAccessibility.focus();
 }
 
+function populateFontSelect(select, fonts, selected) {
+  const choices = [...new Set([selected, ...fonts].filter(Boolean))];
+  select.replaceChildren(...choices.map((font) => {
+    const option = document.createElement("option");
+    option.value = font;
+    option.textContent = font;
+    option.style.fontFamily = `${JSON.stringify(font)}, sans-serif`;
+    return option;
+  }));
+  select.value = selected;
+}
+
+function activateConfigTab(tab, moveFocus = false) {
+  const name = tab.dataset.configTab;
+  $$('[data-config-tab]').forEach((item) => {
+    const selected = item === tab;
+    item.setAttribute("aria-selected", String(selected));
+    item.tabIndex = selected ? 0 : -1;
+  });
+  $$('[data-config-panel]').forEach((panel) => {
+    panel.hidden = panel.dataset.configPanel !== name;
+  });
+  if (moveFocus) tab.focus();
+}
+
+function playPreviewSound(id, volume) {
+  if (volume <= 0) {
+    showToast("Raise the sound volume to hear a preview.", true);
+    return;
+  }
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) throw new Error("Audio preview is unavailable.");
+    const context = new AudioContextClass();
+    const patterns = {
+      soft: [[523.25, 0, 0.16], [659.25, 0.12, 0.24]],
+      glass: [[880, 0, 0.1], [1318.51, 0.07, 0.3]],
+      pulse: [[392, 0, 0.09], [523.25, 0.11, 0.09], [783.99, 0.22, 0.18]],
+    };
+    const pattern = patterns[id] || patterns.soft;
+    const start = context.currentTime + 0.025;
+    for (const [frequency, delay, duration] of pattern) {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = id === "pulse" ? "triangle" : "sine";
+      oscillator.frequency.setValueAtTime(frequency, start + delay);
+      gain.gain.setValueAtTime(0.0001, start + delay);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.001, volume * 0.16), start + delay + 0.018);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + delay + duration);
+      oscillator.connect(gain).connect(context.destination);
+      oscillator.start(start + delay);
+      oscillator.stop(start + delay + duration + 0.02);
+    }
+    setTimeout(() => context.close().catch(() => {}), 900);
+  } catch (error) {
+    showToast(error.message || "Couldn’t play that sound.", true);
+  }
+}
+
 elements.form.addEventListener("input", () => {
   updatePreview();
   if (!initialized) return;
@@ -262,6 +382,20 @@ $$('[data-fit]').forEach((button) => {
     });
     updatePreview();
     if (initialized) window.themeStudio.save(getTheme()).catch(() => {});
+  });
+});
+
+$$('[data-config-tab]').forEach((tab, index, tabs) => {
+  tab.addEventListener("click", () => activateConfigTab(tab));
+  tab.addEventListener("keydown", (event) => {
+    let nextIndex = null;
+    if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
+    if (event.key === "ArrowLeft") nextIndex = (index - 1 + tabs.length) % tabs.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = tabs.length - 1;
+    if (nextIndex === null) return;
+    event.preventDefault();
+    activateConfigTab(tabs[nextIndex], true);
   });
 });
 
@@ -325,6 +459,11 @@ elements.disableButton.addEventListener("click", async () => {
   }
 });
 
+elements.testSound.addEventListener("click", () => {
+  const theme = getTheme();
+  playPreviewSound(theme.soundId, theme.soundVolume / 100);
+});
+
 elements.openAccessibility.addEventListener("click", openAccessibilityDialog);
 elements.closeAccessibility.addEventListener("click", () => elements.accessibilityDialog.close());
 elements.accessibilityDialog.addEventListener("click", (event) => {
@@ -358,7 +497,12 @@ document.addEventListener("keydown", (event) => {
 async function initialize() {
   applyAccessibilityPreferences(readAccessibilityPreferences(), false);
   try {
-    const { theme } = await window.themeStudio.getState();
+    const [{ theme }, fonts] = await Promise.all([
+      window.themeStudio.getState(),
+      window.themeStudio.listFonts().catch(() => []),
+    ]);
+    populateFontSelect(elements.uiFont, fonts, theme.uiFont || EDITOR_DEFAULTS.uiFont);
+    populateFontSelect(elements.codeFont, fonts, theme.codeFont || EDITOR_DEFAULTS.codeFont);
     setTheme(theme);
     initialized = true;
     await refreshStatus();
