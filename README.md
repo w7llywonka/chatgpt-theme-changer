@@ -13,11 +13,12 @@ Download the portable `.exe` from the repository's [latest release](https://gith
 
 1. Open **ChatGPT Theme Studio**.
 2. Use the side-panel tabs to configure **Background**, **Type**, and **Sound**.
-3. Paste a direct HTTPS image link or choose a local PNG, JPG, WebP, or GIF.
-4. Choose separate installed Windows fonts for the interface and code, then adjust font sizes and reading line height.
-5. Optionally enable a Soft, Glass, or Pulse completion sound and preview it before applying.
-6. Choose **Apply to ChatGPT**.
-7. Approve the one-time ChatGPT restart. Any response currently generating will stop, but chats and account data are not changed.
+3. Paste a direct HTTPS image link or choose a local PNG, JPG, WebP, or GIF, then position its focal point with the horizontal and vertical controls.
+4. Import one local WOFF2, WOFF, TTF, or OTF file for the interface, then adjust font sizes and reading line height. Code keeps a separate monospace face for readability.
+5. Optionally enable a built-in completion sound or import a local MP3, WAV, OGG, M4A, or AAC file and preview it before applying.
+6. Save named profiles for setups you switch between. **Export** creates one portable JSON file with local assets embedded; **Import** restores it on another machine.
+7. Choose **Apply to ChatGPT**.
+8. Approve the one-time ChatGPT restart. Any response currently generating will stop, but chats and account data are not changed.
 
 Keep Theme Studio open or minimized so it can reapply the theme to newly opened ChatGPT windows. Choose **Remove theme** to remove the runtime style.
 
@@ -36,7 +37,7 @@ Accessibility preferences are stored locally and restored the next time Theme St
 
 ## How it works
 
-Theme Studio restarts ChatGPT with Chromium's debugging endpoint bound only to `127.0.0.1`, then injects one reversible `<style>` element into ChatGPT windows. When completion sounds are enabled, a local observer watches only ChatGPT's generating/not-generating interface state and synthesizes the selected tone on-device. It does not read conversation content, patch files under `WindowsApps`, change account data, or send theme data to a server.
+Theme Studio restarts ChatGPT with Chromium's debugging endpoint bound only to `127.0.0.1`, then injects one reversible `<style>` element into ChatGPT windows. When completion sounds are enabled, a local observer watches only ChatGPT's generating/not-generating interface state and plays the selected built-in or local tone on-device. Profiles, imported assets, and theme exports remain local. Theme Studio does not read conversation content, patch files under `WindowsApps`, change account data, or send theme data to a server.
 
 Because the local debugging endpoint is unauthenticated, do not change its host from `127.0.0.1` and do not expose port `9237` to another device.
 
@@ -83,7 +84,9 @@ The portable executable is written to `dist/`. Personal builds are unsigned, so 
 
 - Direct HTTPS image URLs are the most reliable; some hosts block image hotlinking.
 - Local images are stored as data URLs in Theme Studio's local settings.
-- The font menus show font families installed on the current Windows computer.
+- Imported interface fonts are embedded in the local theme settings and never uploaded. Font files must be 8 MB or smaller.
+- Custom completion sounds are embedded locally and must be 6 MB or smaller.
+- Theme exports can be large because they include any imported image, font, and sound data.
 - Completion detection follows ChatGPT's current response controls and may require a compatibility update if that interface changes.
 - The first application requires a ChatGPT restart.
 - ChatGPT updates can change internal surface styles or startup behavior.

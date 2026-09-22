@@ -52,16 +52,20 @@ test("the configuration sidebar uses accessible tabs and labeled feature control
   assert.match(html, /role="tablist" aria-label="Theme configuration sections"/);
   assert.equal((html.match(/role="tab"/g) || []).length, 3);
   assert.equal((html.match(/role="tabpanel"/g) || []).length, 3);
-  assert.match(html, /<label class="select-control" for="uiFont">/);
-  assert.match(html, /<label class="select-control" for="codeFont">/);
+  assert.match(html, /<button id="chooseFont"[^>]*>Import font<\/button>/);
+  assert.match(html, /<strong id="uiFontName">/);
   assert.match(html, /<label class="config-switch" for="soundEnabled">/);
+  assert.match(html, /<select id="profileSelect">/);
+  assert.match(html, /<button id="importTheme"[^>]*>Import<\/button>/);
+  assert.match(html, /<button id="chooseSound"[^>]*>Import sound<\/button>/);
+  assert.match(html, /<label class="slider-row" for="backgroundPositionX">/);
 });
 
 test("core interface colors exceed WCAG AA text contrast", () => {
-  assert.ok(contrast("#f2f5f0", "#080a08") >= 4.5, "primary text contrast");
-  assert.ok(contrast("#969c96", "#080a08") >= 4.5, "secondary text contrast");
-  assert.ok(contrast("#101309", "#d7ff4f") >= 4.5, "accent button contrast");
-  assert.ok(contrast("#ff8179", "#080a08") >= 4.5, "error text contrast");
+  assert.ok(contrast("#e7e3dc", "#171715") >= 4.5, "primary text contrast");
+  assert.ok(contrast("#8f8c86", "#171715") >= 4.5, "secondary text contrast");
+  assert.ok(contrast("#171715", "#d8d4cc") >= 4.5, "accent button contrast");
+  assert.ok(contrast("#ff8179", "#171715") >= 4.5, "error text contrast");
 });
 
 test("the layout remains usable below desktop width", () => {

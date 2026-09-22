@@ -1,5 +1,6 @@
 const { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } = require("electron");
 const { execFile } = require("node:child_process");
+const { randomUUID } = require("node:crypto");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { promisify } = require("node:util");
@@ -11,6 +12,14 @@ const {
   buildThemeCss,
   normalizeTheme,
 } = require("./lib/theme.cjs");
+const {
+  MAX_PROFILES,
+  normalizeProfileName,
+  normalizeProfilesFile,
+  parseThemeFile,
+  serializeThemeFile,
+  themeForProfile,
+} = require("./lib/profiles.cjs");
 const { launchChatGptProcess } = require("./lib/chatgpt-process.cjs");
 
 const execFileAsync = promisify(execFile);
@@ -20,24 +29,31 @@ const DEBUG_BASE = `http://${DEBUG_HOST}:${DEBUG_PORT}`;
 
 let mainWindow = null;
 let currentTheme = { ...DEFAULT_THEME };
+let themeProfiles = [];
 let monitorTimer = null;
 let chatGptInstall = null;
-let installedFonts = null;
 let applying = false;
 const appliedTargets = new Map();
 
-const hasSingleInstanceLock = app.requestSingleInstanceLock();
+const allowMultipleInstances = process.env.THEME_STUDIO_ALLOW_MULTIPLE === "1";
+const hasSingleInstanceLock = allowMultipleInstances || app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) app.quit();
 
-app.on("second-instance", () => {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  if (mainWindow.isMinimized()) mainWindow.restore();
-  mainWindow.show();
-  mainWindow.focus();
-});
+if (!allowMultipleInstances) {
+  app.on("second-instance", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  });
+}
 
 function statePath() {
   return path.join(app.getPath("userData"), "theme.json");
+}
+
+function profilesPath() {
+  return path.join(app.getPath("userData"), "profiles.json");
 }
 
 async function loadState() {
@@ -56,28 +72,22 @@ async function saveState(next) {
   return currentTheme;
 }
 
-async function listInstalledFonts() {
-  if (installedFonts) return installedFonts;
-  const fallback = ["Aptos", "Arial", "Bahnschrift", "Cascadia Code", "Consolas", "Georgia", "Segoe UI"];
-  const script = `
-    Add-Type -AssemblyName System.Drawing
-    $collection = New-Object System.Drawing.Text.InstalledFontCollection
-    $collection.Families.Name | Sort-Object -Unique | ConvertTo-Json -Compress
-  `;
+async function loadProfiles() {
   try {
-    const { stdout } = await execFileAsync(
-      "powershell.exe",
-      powershellArgs(script),
-      { windowsHide: true, timeout: 15000 },
-    );
-    const parsed = JSON.parse(stdout.trim() || "[]");
-    const found = Array.isArray(parsed) ? parsed : [parsed];
-    installedFonts = [...new Set([...fallback, ...found.filter(Boolean)])]
-      .sort((first, second) => first.localeCompare(second));
+    themeProfiles = normalizeProfilesFile(JSON.parse(await fs.readFile(profilesPath(), "utf8")));
   } catch {
-    installedFonts = fallback;
+    themeProfiles = [];
   }
-  return installedFonts;
+  return themeProfiles;
+}
+
+async function persistProfiles() {
+  await fs.mkdir(path.dirname(profilesPath()), { recursive: true });
+  await fs.writeFile(profilesPath(), `${JSON.stringify({ version: 1, profiles: themeProfiles }, null, 2)}\n`, "utf8");
+}
+
+function profileSummaries() {
+  return themeProfiles.map(({ id, name, updatedAt }) => ({ id, name, updatedAt }));
 }
 
 function powershellArgs(script) {
@@ -490,7 +500,7 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
-  await loadState();
+  await Promise.all([loadState(), loadProfiles()]);
   createWindow();
   startMonitor();
   if (currentTheme.enabled) applyThemeToTargets({ force: true }).catch(() => {});
@@ -509,7 +519,42 @@ ipcMain.handle("theme:get-state", async () => ({ theme: currentTheme }));
 
 ipcMain.handle("theme:get-status", () => statusSnapshot());
 
-ipcMain.handle("theme:list-fonts", () => listInstalledFonts());
+ipcMain.handle("theme:profiles-get", () => ({ profiles: profileSummaries() }));
+
+ipcMain.handle("theme:profile-save", async (_event, input = {}) => {
+  const name = normalizeProfileName(input.name);
+  const existingIndex = input.id
+    ? themeProfiles.findIndex((profile) => profile.id === input.id)
+    : themeProfiles.findIndex((profile) => profile.name.toLowerCase() === name.toLowerCase());
+  const profile = {
+    id: existingIndex >= 0 ? themeProfiles[existingIndex].id : randomUUID(),
+    name,
+    theme: themeForProfile(input.theme),
+    updatedAt: Date.now(),
+  };
+  if (existingIndex >= 0) themeProfiles.splice(existingIndex, 1, profile);
+  else {
+    if (themeProfiles.length >= MAX_PROFILES) throw new Error(`Theme Studio keeps up to ${MAX_PROFILES} profiles.`);
+    themeProfiles.unshift(profile);
+  }
+  await persistProfiles();
+  return { profile: { id: profile.id, name: profile.name, updatedAt: profile.updatedAt }, profiles: profileSummaries() };
+});
+
+ipcMain.handle("theme:profile-load", async (_event, id) => {
+  const profile = themeProfiles.find((item) => item.id === id);
+  if (!profile) throw new Error("That profile no longer exists.");
+  const theme = await saveState({ ...profile.theme, enabled: currentTheme.enabled });
+  return { theme, profile: { id: profile.id, name: profile.name, updatedAt: profile.updatedAt } };
+});
+
+ipcMain.handle("theme:profile-delete", async (_event, id) => {
+  const next = themeProfiles.filter((profile) => profile.id !== id);
+  if (next.length === themeProfiles.length) throw new Error("That profile no longer exists.");
+  themeProfiles = next;
+  await persistProfiles();
+  return { profiles: profileSummaries() };
+});
 
 ipcMain.handle("theme:save", async (_event, next) => ({
   theme: await saveState(next),
@@ -546,5 +591,94 @@ ipcMain.handle("theme:choose-image", async () => {
   return {
     dataUrl: `data:image/${extension};base64,${data.toString("base64")}`,
     name: path.basename(filePath),
+  };
+});
+
+ipcMain.handle("theme:choose-font", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: "Import an interface font",
+    properties: ["openFile"],
+    filters: [
+      { name: "Fonts", extensions: ["woff2", "woff", "ttf", "otf"] },
+    ],
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+
+  const filePath = result.filePaths[0];
+  const stat = await fs.stat(filePath);
+  if (stat.size > 8 * 1024 * 1024) {
+    throw new Error("Choose a font under 8 MB so the theme stays quick to apply.");
+  }
+
+  const extension = path.extname(filePath).slice(1).toLowerCase();
+  const mimeTypes = {
+    woff2: "woff2",
+    woff: "woff",
+    ttf: "ttf",
+    otf: "otf",
+  };
+  if (!mimeTypes[extension]) throw new Error("Choose a WOFF2, WOFF, TTF, or OTF font file.");
+
+  const data = await fs.readFile(filePath);
+  return {
+    dataUrl: `data:font/${mimeTypes[extension]};base64,${data.toString("base64")}`,
+    name: path.basename(filePath),
+    label: path.basename(filePath, path.extname(filePath)),
+  };
+});
+
+ipcMain.handle("theme:choose-sound", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: "Import a completion sound",
+    properties: ["openFile"],
+    filters: [
+      { name: "Audio", extensions: ["mp3", "wav", "ogg", "m4a", "aac"] },
+    ],
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+
+  const filePath = result.filePaths[0];
+  const stat = await fs.stat(filePath);
+  if (stat.size > 6 * 1024 * 1024) {
+    throw new Error("Choose a sound under 6 MB so the theme stays quick to apply.");
+  }
+  const extension = path.extname(filePath).slice(1).toLowerCase();
+  const mimeTypes = { mp3: "mpeg", wav: "wav", ogg: "ogg", m4a: "mp4", aac: "aac" };
+  if (!mimeTypes[extension]) throw new Error("Choose an MP3, WAV, OGG, M4A, or AAC file.");
+  const data = await fs.readFile(filePath);
+  return {
+    dataUrl: `data:audio/${mimeTypes[extension]};base64,${data.toString("base64")}`,
+    name: path.basename(filePath),
+  };
+});
+
+ipcMain.handle("theme:export", async (_event, input = {}) => {
+  const safeName = String(input.name || "theme").replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "") || "theme";
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: "Export theme",
+    defaultPath: `${safeName}.chatgpt-theme.json`,
+    filters: [{ name: "Theme Studio theme", extensions: ["json"] }],
+  });
+  if (result.canceled || !result.filePath) return { cancelled: true };
+  await fs.writeFile(result.filePath, serializeThemeFile(input.theme), "utf8");
+  return { cancelled: false, name: path.basename(result.filePath) };
+});
+
+ipcMain.handle("theme:import", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: "Import theme",
+    properties: ["openFile"],
+    filters: [{ name: "Theme Studio theme", extensions: ["json"] }],
+  });
+  if (result.canceled || !result.filePaths[0]) return { cancelled: true };
+  const filePath = result.filePaths[0];
+  const stat = await fs.stat(filePath);
+  if (stat.size > 40 * 1024 * 1024) throw new Error("Choose a theme export under 40 MB.");
+  const imported = parseThemeFile(await fs.readFile(filePath, "utf8"));
+  const theme = await saveState({ ...imported, enabled: currentTheme.enabled });
+  return {
+    cancelled: false,
+    theme,
+    suggestedName: path.basename(filePath).replace(/\.chatgpt-theme\.json$|\.json$/i, ""),
   };
 });

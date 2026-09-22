@@ -4,14 +4,17 @@ const $$ = (selector) => [...document.querySelectorAll(selector)];
 const EDITOR_DEFAULTS = Object.freeze({
   backgroundUrl: "https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?auto=format&fit=crop&w=2400&q=88",
   fit: "cover",
-  position: "center",
+  backgroundPositionX: 50,
+  backgroundPositionY: 50,
   panelColor: "#111315",
-  accent: "#d7ff4f",
+  accent: "#d8d4cc",
   dim: 46,
   blur: 0,
   panelOpacity: 78,
   vignette: 35,
-  uiFont: "Aptos",
+  uiFont: "Segoe UI",
+  uiFontDataUrl: "",
+  uiFontFileName: "",
   codeFont: "Cascadia Code",
   uiFontSize: 16,
   codeFontSize: 14,
@@ -19,6 +22,8 @@ const EDITOR_DEFAULTS = Object.freeze({
   soundEnabled: false,
   soundId: "soft",
   soundVolume: 55,
+  customSoundDataUrl: "",
+  customSoundFileName: "",
 });
 
 const ACCESSIBILITY_KEY = "theme-studio-accessibility-v1";
@@ -28,6 +33,8 @@ const elements = {
   backgroundUrl: $("#backgroundUrl"),
   chooseFile: $("#chooseFile"),
   fit: $("#fit"),
+  backgroundPositionX: $("#backgroundPositionX"),
+  backgroundPositionY: $("#backgroundPositionY"),
   panelColor: $("#panelColor"),
   accent: $("#accent"),
   dim: $("#dim"),
@@ -35,12 +42,23 @@ const elements = {
   panelOpacity: $("#panelOpacity"),
   vignette: $("#vignette"),
   uiFont: $("#uiFont"),
+  uiFontDataUrl: $("#uiFontDataUrl"),
+  uiFontFileName: $("#uiFontFileName"),
+  uiFontName: $("#uiFontName"),
+  chooseFont: $("#chooseFont"),
+  clearFont: $("#clearFont"),
   codeFont: $("#codeFont"),
   uiFontSize: $("#uiFontSize"),
   codeFontSize: $("#codeFontSize"),
   lineHeight: $("#lineHeight"),
   soundEnabled: $("#soundEnabled"),
   soundVolume: $("#soundVolume"),
+  customSoundDataUrl: $("#customSoundDataUrl"),
+  customSoundFileName: $("#customSoundFileName"),
+  customSoundName: $("#customSoundName"),
+  soundCustom: $("#soundCustom"),
+  chooseSound: $("#chooseSound"),
+  clearSound: $("#clearSound"),
   panelColorText: $("#panelColorText"),
   accentText: $("#accentText"),
   dimValue: $("#dimValue"),
@@ -51,6 +69,8 @@ const elements = {
   codeFontSizeValue: $("#codeFontSizeValue"),
   lineHeightValue: $("#lineHeightValue"),
   soundVolumeValue: $("#soundVolumeValue"),
+  backgroundPositionXValue: $("#backgroundPositionXValue"),
+  backgroundPositionYValue: $("#backgroundPositionYValue"),
   fontPreview: $("#fontPreview"),
   preview: $("#preview"),
   urlHint: $("#urlHint"),
@@ -66,6 +86,13 @@ const elements = {
   closeAccessibility: $("#closeAccessibility"),
   highContrast: $("#highContrast"),
   reduceMotion: $("#reduceMotion"),
+  profileSelect: $("#profileSelect"),
+  profileName: $("#profileName"),
+  loadProfile: $("#loadProfile"),
+  saveProfile: $("#saveProfile"),
+  deleteProfile: $("#deleteProfile"),
+  importTheme: $("#importTheme"),
+  exportTheme: $("#exportTheme"),
 };
 
 let currentStatus = null;
@@ -74,6 +101,10 @@ let localImageName = null;
 let initialized = false;
 let saveTimer = null;
 let lastValidatedUrl = null;
+let profiles = [];
+const previewFontStyle = document.createElement("style");
+previewFontStyle.id = "theme-studio-preview-font";
+document.head.appendChild(previewFontStyle);
 
 function hexToRgb(hex) {
   const value = hex.slice(1);
@@ -88,7 +119,8 @@ function getTheme() {
   return {
     backgroundUrl: elements.backgroundUrl.value.trim(),
     fit: elements.fit.value,
-    position: "center",
+    backgroundPositionX: Number(elements.backgroundPositionX.value),
+    backgroundPositionY: Number(elements.backgroundPositionY.value),
     panelColor: elements.panelColor.value,
     accent: elements.accent.value,
     dim: Number(elements.dim.value),
@@ -96,6 +128,8 @@ function getTheme() {
     panelOpacity: Number(elements.panelOpacity.value),
     vignette: Number(elements.vignette.value),
     uiFont: elements.uiFont.value,
+    uiFontDataUrl: elements.uiFontDataUrl.value,
+    uiFontFileName: elements.uiFontFileName.value,
     codeFont: elements.codeFont.value,
     uiFontSize: Number(elements.uiFontSize.value),
     codeFontSize: Number(elements.codeFontSize.value),
@@ -103,27 +137,37 @@ function getTheme() {
     soundEnabled: elements.soundEnabled.checked,
     soundId: $('[name="soundId"]:checked')?.value || "soft",
     soundVolume: Number(elements.soundVolume.value),
+    customSoundDataUrl: elements.customSoundDataUrl.value,
+    customSoundFileName: elements.customSoundFileName.value,
   };
 }
 
 function setTheme(theme) {
   elements.backgroundUrl.value = theme.backgroundUrl || "";
   elements.fit.value = theme.fit || "cover";
+  elements.backgroundPositionX.value = theme.backgroundPositionX ?? 50;
+  elements.backgroundPositionY.value = theme.backgroundPositionY ?? 50;
   elements.panelColor.value = theme.panelColor || "#111315";
-  elements.accent.value = theme.accent || "#d7ff4f";
+  elements.accent.value = theme.accent || "#d8d4cc";
   elements.dim.value = theme.dim ?? 46;
   elements.blur.value = theme.blur ?? 0;
   elements.panelOpacity.value = theme.panelOpacity ?? 78;
   elements.vignette.value = theme.vignette ?? 35;
   elements.uiFont.value = theme.uiFont || EDITOR_DEFAULTS.uiFont;
+  elements.uiFontDataUrl.value = theme.uiFontDataUrl || "";
+  elements.uiFontFileName.value = theme.uiFontFileName || "";
   elements.codeFont.value = theme.codeFont || EDITOR_DEFAULTS.codeFont;
   elements.uiFontSize.value = theme.uiFontSize ?? EDITOR_DEFAULTS.uiFontSize;
   elements.codeFontSize.value = theme.codeFontSize ?? EDITOR_DEFAULTS.codeFontSize;
   elements.lineHeight.value = theme.lineHeight ?? EDITOR_DEFAULTS.lineHeight;
   elements.soundEnabled.checked = Boolean(theme.soundEnabled);
   elements.soundVolume.value = theme.soundVolume ?? EDITOR_DEFAULTS.soundVolume;
+  elements.customSoundDataUrl.value = theme.customSoundDataUrl || "";
+  elements.customSoundFileName.value = theme.customSoundFileName || "";
+  renderCustomSoundState();
   const soundChoice = $(`[name="soundId"][value="${theme.soundId || EDITOR_DEFAULTS.soundId}"]`);
   if (soundChoice) soundChoice.checked = true;
+  renderFontImportState();
   $$('[data-fit]').forEach((button) => {
     const selected = button.dataset.fit === elements.fit.value;
     button.classList.toggle("is-active", selected);
@@ -144,6 +188,10 @@ function updateRange(range) {
 
 function updatePreview() {
   const theme = getTheme();
+  const previewUiFont = theme.uiFontDataUrl ? "Theme Studio Preview UI" : theme.uiFont;
+  previewFontStyle.textContent = theme.uiFontDataUrl
+    ? `@font-face { font-family: "Theme Studio Preview UI"; src: url(${JSON.stringify(theme.uiFontDataUrl)}); font-style: normal; font-weight: 100 900; font-display: swap; }`
+    : "";
   const previewImage = theme.backgroundUrl ? `url(${JSON.stringify(theme.backgroundUrl)})` : "none";
   document.documentElement.style.setProperty("--accent", theme.accent);
   document.documentElement.style.setProperty("--studio-image", previewImage);
@@ -154,12 +202,13 @@ function updatePreview() {
   elements.preview.style.setProperty("--preview-opacity", (theme.panelOpacity / 100).toFixed(2));
   elements.preview.style.setProperty("--preview-panel", hexToRgb(theme.panelColor));
   elements.preview.style.setProperty("--preview-fit", theme.fit === "stretch" ? "100% 100%" : theme.fit);
-  elements.preview.style.setProperty("--preview-ui-font", `${JSON.stringify(theme.uiFont)}, sans-serif`);
+  elements.preview.style.setProperty("--preview-position", `${theme.backgroundPositionX}% ${theme.backgroundPositionY}%`);
+  elements.preview.style.setProperty("--preview-ui-font", `${JSON.stringify(previewUiFont)}, "Segoe UI", sans-serif`);
   elements.preview.style.setProperty("--preview-code-font", `${JSON.stringify(theme.codeFont)}, monospace`);
   elements.preview.style.setProperty("--preview-ui-size", `${theme.uiFontSize}px`);
   elements.preview.style.setProperty("--preview-code-size", `${theme.codeFontSize}px`);
   elements.preview.style.setProperty("--preview-line-height", (theme.lineHeight / 100).toFixed(2));
-  elements.fontPreview.style.fontFamily = `${JSON.stringify(theme.uiFont)}, sans-serif`;
+  elements.fontPreview.style.fontFamily = `${JSON.stringify(previewUiFont)}, "Segoe UI", sans-serif`;
   elements.fontPreview.style.lineHeight = (theme.lineHeight / 100).toFixed(2);
   elements.fontPreview.querySelector("code").style.fontFamily = `${JSON.stringify(theme.codeFont)}, monospace`;
   elements.fontPreview.querySelector("code").style.fontSize = `${theme.codeFontSize}px`;
@@ -174,6 +223,8 @@ function updatePreview() {
   elements.codeFontSizeValue.textContent = `${theme.codeFontSize}px`;
   elements.lineHeightValue.textContent = `${theme.lineHeight}%`;
   elements.soundVolumeValue.textContent = `${theme.soundVolume}%`;
+  elements.backgroundPositionXValue.textContent = `${theme.backgroundPositionX}%`;
+  elements.backgroundPositionYValue.textContent = `${theme.backgroundPositionY}%`;
   [
     elements.dim,
     elements.blur,
@@ -183,6 +234,8 @@ function updatePreview() {
     elements.codeFontSize,
     elements.lineHeight,
     elements.soundVolume,
+    elements.backgroundPositionX,
+    elements.backgroundPositionY,
   ].forEach(updateRange);
 
   if (theme.backgroundUrl !== lastValidatedUrl) {
@@ -302,16 +355,46 @@ function openAccessibilityDialog() {
   elements.closeAccessibility.focus();
 }
 
-function populateFontSelect(select, fonts, selected) {
-  const choices = [...new Set([selected, ...fonts].filter(Boolean))];
-  select.replaceChildren(...choices.map((font) => {
+function renderFontImportState() {
+  const fileName = elements.uiFontFileName.value;
+  const hasImportedFont = Boolean(elements.uiFontDataUrl.value && fileName);
+  elements.uiFontName.textContent = hasImportedFont ? fileName : "System font";
+  elements.chooseFont.textContent = hasImportedFont ? "Replace font" : "Import font";
+  elements.clearFont.hidden = !hasImportedFont;
+}
+
+function renderCustomSoundState() {
+  const fileName = elements.customSoundFileName.value;
+  const hasCustomSound = Boolean(elements.customSoundDataUrl.value && fileName);
+  elements.customSoundName.textContent = hasCustomSound ? fileName : "Import a local sound";
+  elements.soundCustom.disabled = !hasCustomSound;
+  elements.chooseSound.textContent = hasCustomSound ? "Replace sound" : "Import sound";
+  elements.clearSound.hidden = !hasCustomSound;
+  if (!hasCustomSound && elements.soundCustom.checked) $("#soundSoft").checked = true;
+}
+
+function renderProfiles(nextProfiles, selectedId = elements.profileSelect.value) {
+  profiles = Array.isArray(nextProfiles) ? nextProfiles : [];
+  elements.profileSelect.replaceChildren();
+  const currentOption = document.createElement("option");
+  currentOption.value = "";
+  currentOption.textContent = "Current controls";
+  elements.profileSelect.append(currentOption);
+  for (const profile of profiles) {
     const option = document.createElement("option");
-    option.value = font;
-    option.textContent = font;
-    option.style.fontFamily = `${JSON.stringify(font)}, sans-serif`;
-    return option;
-  }));
-  select.value = selected;
+    option.value = profile.id;
+    option.textContent = profile.name;
+    elements.profileSelect.append(option);
+  }
+  elements.profileSelect.value = profiles.some((profile) => profile.id === selectedId) ? selectedId : "";
+  updateProfileSelection();
+}
+
+function updateProfileSelection() {
+  const profile = profiles.find((item) => item.id === elements.profileSelect.value);
+  elements.loadProfile.disabled = !profile;
+  elements.deleteProfile.disabled = !profile;
+  if (profile) elements.profileName.value = profile.name;
 }
 
 function activateConfigTab(tab, moveFocus = false) {
@@ -327,12 +410,20 @@ function activateConfigTab(tab, moveFocus = false) {
   if (moveFocus) tab.focus();
 }
 
-function playPreviewSound(id, volume) {
+function playPreviewSound(theme) {
+  const volume = theme.soundVolume / 100;
   if (volume <= 0) {
     showToast("Raise the sound volume to hear a preview.", true);
     return;
   }
   try {
+    if (theme.soundId === "custom") {
+      if (!theme.customSoundDataUrl) throw new Error("Import a custom sound first.");
+      const audio = new Audio(theme.customSoundDataUrl);
+      audio.volume = volume;
+      audio.play().catch(() => showToast("Couldn’t play that sound file.", true));
+      return;
+    }
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) throw new Error("Audio preview is unavailable.");
     const context = new AudioContextClass();
@@ -341,12 +432,12 @@ function playPreviewSound(id, volume) {
       glass: [[880, 0, 0.1], [1318.51, 0.07, 0.3]],
       pulse: [[392, 0, 0.09], [523.25, 0.11, 0.09], [783.99, 0.22, 0.18]],
     };
-    const pattern = patterns[id] || patterns.soft;
+    const pattern = patterns[theme.soundId] || patterns.soft;
     const start = context.currentTime + 0.025;
     for (const [frequency, delay, duration] of pattern) {
       const oscillator = context.createOscillator();
       const gain = context.createGain();
-      oscillator.type = id === "pulse" ? "triangle" : "sine";
+      oscillator.type = theme.soundId === "pulse" ? "triangle" : "sine";
       oscillator.frequency.setValueAtTime(frequency, start + delay);
       gain.gain.setValueAtTime(0.0001, start + delay);
       gain.gain.exponentialRampToValueAtTime(Math.max(0.001, volume * 0.16), start + delay + 0.018);
@@ -412,6 +503,133 @@ elements.chooseFile.addEventListener("click", async () => {
   }
 });
 
+elements.chooseFont.addEventListener("click", async () => {
+  try {
+    const result = await window.themeStudio.chooseFont();
+    if (!result) return;
+    elements.uiFont.value = result.label || EDITOR_DEFAULTS.uiFont;
+    elements.uiFontDataUrl.value = result.dataUrl;
+    elements.uiFontFileName.value = result.name;
+    renderFontImportState();
+    updatePreview();
+    await window.themeStudio.save(getTheme());
+    showToast(`${result.name} imported and applied to the preview.`);
+  } catch (error) {
+    showToast(error.message || "Couldn’t import that font.", true);
+  }
+});
+
+elements.clearFont.addEventListener("click", async () => {
+  elements.uiFont.value = EDITOR_DEFAULTS.uiFont;
+  elements.uiFontDataUrl.value = "";
+  elements.uiFontFileName.value = "";
+  renderFontImportState();
+  updatePreview();
+  try {
+    await window.themeStudio.save(getTheme());
+    showToast("Imported font removed. Using the system font.");
+  } catch (error) {
+    showToast(error.message || "Couldn’t update the font setting.", true);
+  }
+});
+
+elements.chooseSound.addEventListener("click", async () => {
+  try {
+    const result = await window.themeStudio.chooseSound();
+    if (!result) return;
+    elements.customSoundDataUrl.value = result.dataUrl;
+    elements.customSoundFileName.value = result.name;
+    elements.soundCustom.disabled = false;
+    elements.soundCustom.checked = true;
+    elements.soundEnabled.checked = true;
+    renderCustomSoundState();
+    updatePreview();
+    await window.themeStudio.save(getTheme());
+    showToast(`${result.name} imported. Test it before applying.`);
+  } catch (error) {
+    showToast(error.message || "Couldn’t import that sound.", true);
+  }
+});
+
+elements.clearSound.addEventListener("click", async () => {
+  elements.customSoundDataUrl.value = "";
+  elements.customSoundFileName.value = "";
+  if (elements.soundCustom.checked) $("#soundSoft").checked = true;
+  renderCustomSoundState();
+  updatePreview();
+  try {
+    await window.themeStudio.save(getTheme());
+    showToast("Custom sound removed.");
+  } catch (error) {
+    showToast(error.message || "Couldn’t update the sound setting.", true);
+  }
+});
+
+elements.profileSelect.addEventListener("change", updateProfileSelection);
+
+elements.loadProfile.addEventListener("click", async () => {
+  if (!elements.profileSelect.value) return;
+  try {
+    const result = await window.themeStudio.loadProfile(elements.profileSelect.value);
+    setTheme(result.theme);
+    elements.profileName.value = result.profile.name;
+    showToast(`${result.profile.name} loaded.`);
+  } catch (error) {
+    showToast(error.message || "Couldn’t load that profile.", true);
+  }
+});
+
+elements.saveProfile.addEventListener("click", async () => {
+  try {
+    const result = await window.themeStudio.saveProfile({
+      id: elements.profileSelect.value || undefined,
+      name: elements.profileName.value,
+      theme: getTheme(),
+    });
+    renderProfiles(result.profiles, result.profile.id);
+    elements.profileName.value = result.profile.name;
+    showToast(`${result.profile.name} saved.`);
+  } catch (error) {
+    showToast(error.message || "Couldn’t save that profile.", true);
+  }
+});
+
+elements.deleteProfile.addEventListener("click", async () => {
+  const profile = profiles.find((item) => item.id === elements.profileSelect.value);
+  if (!profile || !window.confirm(`Delete the “${profile.name}” profile?`)) return;
+  try {
+    const result = await window.themeStudio.deleteProfile(profile.id);
+    renderProfiles(result.profiles);
+    elements.profileName.value = "";
+    showToast(`${profile.name} deleted.`);
+  } catch (error) {
+    showToast(error.message || "Couldn’t delete that profile.", true);
+  }
+});
+
+elements.importTheme.addEventListener("click", async () => {
+  try {
+    const result = await window.themeStudio.importTheme();
+    if (result.cancelled) return;
+    setTheme(result.theme);
+    elements.profileSelect.value = "";
+    elements.profileName.value = result.suggestedName || "Imported theme";
+    updateProfileSelection();
+    showToast("Theme imported. Save it as a profile or apply it now.");
+  } catch (error) {
+    showToast(error.message || "Couldn’t import that theme.", true);
+  }
+});
+
+elements.exportTheme.addEventListener("click", async () => {
+  try {
+    const result = await window.themeStudio.exportTheme(getTheme(), elements.profileName.value || "theme");
+    if (!result.cancelled) showToast(`${result.name} exported.`);
+  } catch (error) {
+    showToast(error.message || "Couldn’t export that theme.", true);
+  }
+});
+
 elements.resetButton.addEventListener("click", async () => {
   localImageName = null;
   setTheme(EDITOR_DEFAULTS);
@@ -460,8 +678,7 @@ elements.disableButton.addEventListener("click", async () => {
 });
 
 elements.testSound.addEventListener("click", () => {
-  const theme = getTheme();
-  playPreviewSound(theme.soundId, theme.soundVolume / 100);
+  playPreviewSound(getTheme());
 });
 
 elements.openAccessibility.addEventListener("click", openAccessibilityDialog);
@@ -497,13 +714,12 @@ document.addEventListener("keydown", (event) => {
 async function initialize() {
   applyAccessibilityPreferences(readAccessibilityPreferences(), false);
   try {
-    const [{ theme }, fonts] = await Promise.all([
+    const [{ theme }, profileState] = await Promise.all([
       window.themeStudio.getState(),
-      window.themeStudio.listFonts().catch(() => []),
+      window.themeStudio.getProfiles(),
     ]);
-    populateFontSelect(elements.uiFont, fonts, theme.uiFont || EDITOR_DEFAULTS.uiFont);
-    populateFontSelect(elements.codeFont, fonts, theme.codeFont || EDITOR_DEFAULTS.codeFont);
     setTheme(theme);
+    renderProfiles(profileState.profiles);
     initialized = true;
     await refreshStatus();
   } catch (error) {

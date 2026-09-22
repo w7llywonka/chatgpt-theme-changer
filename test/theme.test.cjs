@@ -4,7 +4,9 @@ const vm = require("node:vm");
 const {
   buildInstallExpression,
   buildThemeCss,
+  normalizeAudioDataUrl,
   normalizeBackgroundUrl,
+  normalizeFontDataUrl,
   normalizeTheme,
 } = require("../lib/theme.cjs");
 
@@ -27,18 +29,32 @@ test("normalizes ranges and colors", () => {
     lineHeight: 999,
     soundId: "airhorn",
     soundVolume: -20,
+    backgroundPositionX: -20,
+    backgroundPositionY: 140,
   });
   assert.equal(theme.dim, 85);
   assert.equal(theme.blur, 0);
   assert.equal(theme.panelOpacity, 70);
   assert.equal(theme.panelColor, "#111315");
   assert.equal(theme.accent, "#aabbcc");
-  assert.equal(theme.uiFont, "Aptos");
+  assert.equal(theme.uiFont, "Segoe UI");
   assert.equal(theme.uiFontSize, 22);
   assert.equal(theme.codeFontSize, 11);
   assert.equal(theme.lineHeight, 200);
   assert.equal(theme.soundId, "soft");
   assert.equal(theme.soundVolume, 0);
+  assert.equal(theme.backgroundPositionX, 0);
+  assert.equal(theme.backgroundPositionY, 100);
+});
+
+test("migrates legacy background positions and emits a focal point", () => {
+  assert.equal(normalizeTheme({ position: "top" }).backgroundPositionY, 0);
+  const css = buildThemeCss({
+    backgroundUrl: "https://example.com/background.jpg",
+    backgroundPositionX: 28,
+    backgroundPositionY: 73,
+  });
+  assert.match(css, /background-position: 28% 73%/);
 });
 
 test("generated CSS safely quotes URLs", () => {
@@ -59,6 +75,30 @@ test("generated CSS safely quotes URLs", () => {
   assert.match(css, /--theme-studio-code-font: "Cascadia Code"/);
   assert.match(css, /font-size: 18px !important/);
   assert.match(css, /--theme-studio-line-height: 1\.75/);
+  assert.match(css, /--font-ui-family: var\(--theme-studio-ui-font\) !important/);
+  assert.match(css, /\[class\*="_Paragraph_"\]/);
+});
+
+test("accepts local font data and emits one embedded interface face", () => {
+  const fontData = "data:font/woff2;base64,d09GMgABAAAA";
+  assert.equal(normalizeFontDataUrl(fontData), fontData);
+  assert.equal(normalizeFontDataUrl("https://example.com/font.woff2"), "");
+
+  const theme = normalizeTheme({
+    uiFont: "Imported display name",
+    uiFontDataUrl: fontData,
+    uiFontFileName: "quiet-face.woff2",
+  });
+  assert.equal(theme.uiFontFileName, "quiet-face.woff2");
+
+  const css = buildThemeCss({
+    backgroundUrl: "https://example.com/background.jpg",
+    uiFontDataUrl: fontData,
+    uiFontFileName: "quiet-face.woff2",
+  });
+  assert.match(css, /@font-face/);
+  assert.match(css, /Theme Studio Imported UI/);
+  assert.match(css, /data:font\/woff2;base64,d09GMgABAAAA/);
 });
 
 test("install expression replaces one stable style element", () => {
@@ -73,6 +113,21 @@ test("install expression replaces one stable style element", () => {
   assert.match(expression, /MutationObserver/);
   assert.match(expression, /"id":"glass"/);
   assert.match(expression, /"volume":0\.4/);
+});
+
+test("accepts embedded custom audio and installs local playback", () => {
+  const audioData = "data:audio/mpeg;base64,SUQzBAAAAAAA";
+  assert.equal(normalizeAudioDataUrl(audioData), audioData);
+  assert.equal(normalizeAudioDataUrl("https://example.com/sound.mp3"), "");
+  const theme = normalizeTheme({
+    soundId: "custom",
+    customSoundDataUrl: audioData,
+    customSoundFileName: "done.mp3",
+  });
+  assert.equal(theme.soundId, "custom");
+  assert.equal(theme.customSoundFileName, "done.mp3");
+  assert.match(buildInstallExpression("body {}", theme), /customDataUrl/);
+  assert.match(buildInstallExpression("body {}", theme), /new Audio/);
 });
 
 test("completion sound expression installs and synthesizes locally", () => {

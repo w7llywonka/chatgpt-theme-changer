@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self';" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; media-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self';" />
     <title>ChatGPT Theme Studio</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -21,9 +21,7 @@
         <span>Theme Studio</span>
       </a>
 
-      <nav class="top-nav" aria-label="Primary navigation">
-        <a href="#theme-controls">Design</a>
-        <a href="#preview-section">Preview</a>
+      <nav class="top-nav" aria-label="Application controls">
         <button id="openAccessibility" type="button" aria-haspopup="dialog" aria-controls="accessibilityDialog">
           Accessibility
         </button>
@@ -38,40 +36,37 @@
     </header>
 
     <main id="top">
-      <section class="hero" aria-labelledby="page-title">
-        <div class="floating-card floating-card-left" aria-hidden="true">
-          <div class="floating-card-image"></div>
-          <span>YOUR IMAGE</span>
-        </div>
-
-        <div class="hero-copy">
-          <p class="eyebrow">CHATGPT DESKTOP · WINDOWS</p>
-          <h1 id="page-title">Your chat.<br /><span>Your canvas.</span></h1>
-          <p class="hero-description">One image. Clear controls. A calmer way to make ChatGPT feel like your space.</p>
-          <a class="hero-action" href="#theme-controls">
-            Start styling
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6.5 13.5 12 19l5.5-5.5" /></svg>
-          </a>
-        </div>
-
-        <div class="floating-card floating-card-right" aria-hidden="true">
-          <div class="floating-swatch"></div>
-          <div>
-            <b>LIVE THEME</b>
-            <span>Runtime only</span>
-          </div>
-        </div>
-      </section>
-
       <section id="theme-controls" class="workspace" aria-label="Theme editor">
         <section class="control-panel" aria-labelledby="controls-title">
           <div class="section-heading">
             <div>
-              <p class="section-index">01 / DESIGN</p>
-              <h2 id="controls-title">Build your look.</h2>
+              <p class="section-index">THEME CONTROLS</p>
+              <h2 id="controls-title">Adjust and apply</h2>
+              <p class="panel-intro">Choose a section, tune the controls, then apply the theme to ChatGPT.</p>
             </div>
             <button id="resetButton" class="quiet-button" type="button">Reset controls</button>
           </div>
+
+          <section class="profile-strip" aria-labelledby="profiles-title">
+            <div class="profile-fields">
+              <label for="profileSelect"><span id="profiles-title">Profile</span>
+                <select id="profileSelect">
+                  <option value="">Current controls</option>
+                </select>
+              </label>
+              <label for="profileName"><span>Name</span>
+                <input id="profileName" type="text" maxlength="40" autocomplete="off" placeholder="Night coding" />
+              </label>
+            </div>
+            <div class="profile-actions" aria-label="Profile and theme file actions">
+              <button id="loadProfile" type="button" disabled>Load</button>
+              <button id="saveProfile" type="button">Save profile</button>
+              <button id="deleteProfile" type="button" disabled>Delete</button>
+              <span aria-hidden="true"></span>
+              <button id="importTheme" type="button">Import</button>
+              <button id="exportTheme" type="button">Export</button>
+            </div>
+          </section>
 
           <form id="themeForm" novalidate>
             <div class="config-tabs" role="tablist" aria-label="Theme configuration sections">
@@ -134,7 +129,7 @@
                       </label>
                       <label class="color-control" for="accent">
                         <span>Accent</span>
-                        <span class="color-value"><input id="accent" name="accent" type="color" value="#d7ff4f" /><output id="accentText">#D7FF4F</output></span>
+                        <span class="color-value"><input id="accent" name="accent" type="color" value="#d8d4cc" /><output id="accentText">#D8D4CC</output></span>
                       </label>
                     </div>
                   </fieldset>
@@ -159,6 +154,14 @@
                       <span><b>Edge vignette</b><output id="vignetteValue" for="vignette">35%</output></span>
                       <input id="vignette" name="vignette" type="range" min="0" max="85" value="35" aria-valuetext="35 percent" />
                     </label>
+                    <label class="slider-row" for="backgroundPositionX">
+                      <span><b>Horizontal position</b><output id="backgroundPositionXValue" for="backgroundPositionX">50%</output></span>
+                      <input id="backgroundPositionX" name="backgroundPositionX" type="range" min="0" max="100" value="50" aria-valuetext="50 percent" />
+                    </label>
+                    <label class="slider-row" for="backgroundPositionY">
+                      <span><b>Vertical position</b><output id="backgroundPositionYValue" for="backgroundPositionY">50%</output></span>
+                      <input id="backgroundPositionY" name="backgroundPositionY" type="range" min="0" max="100" value="50" aria-valuetext="50 percent" />
+                    </label>
                   </div>
                 </fieldset>
               </section>
@@ -166,24 +169,22 @@
               <section id="configType" class="config-section" role="tabpanel" aria-labelledby="typeTab" data-config-panel="type" hidden>
                 <fieldset class="control-card type-card">
                   <legend>Font library</legend>
-                  <p class="panel-intro">Choose from fonts installed on this computer. Chat and code can have separate voices.</p>
-                  <div class="font-select-grid">
-                    <label class="select-control" for="uiFont">
+                  <p class="panel-intro">Import one local font for the ChatGPT interface. Code keeps a readable monospace face.</p>
+                  <div class="font-import-control">
+                    <div class="font-import-copy">
                       <span>Interface font</span>
-                      <select id="uiFont" name="uiFont">
-                        <option value="Aptos">Aptos</option>
-                        <option value="Segoe UI">Segoe UI</option>
-                        <option value="Georgia">Georgia</option>
-                      </select>
-                    </label>
-                    <label class="select-control" for="codeFont">
-                      <span>Code font</span>
-                      <select id="codeFont" name="codeFont">
-                        <option value="Cascadia Code">Cascadia Code</option>
-                        <option value="Consolas">Consolas</option>
-                      </select>
-                    </label>
+                      <strong id="uiFontName">No font imported</strong>
+                      <small>WOFF2, WOFF, TTF, or OTF · up to 8 MB</small>
+                    </div>
+                    <div class="font-import-actions">
+                      <button id="clearFont" class="font-clear-button" type="button" hidden>Clear</button>
+                      <button id="chooseFont" class="font-import-button" type="button">Import font</button>
+                    </div>
                   </div>
+                  <input id="uiFont" name="uiFont" type="hidden" value="Segoe UI" />
+                  <input id="uiFontDataUrl" name="uiFontDataUrl" type="hidden" />
+                  <input id="uiFontFileName" name="uiFontFileName" type="hidden" />
+                  <input id="codeFont" name="codeFont" type="hidden" value="Cascadia Code" />
                 </fieldset>
 
                 <fieldset class="control-card adjustment-card">
@@ -229,7 +230,16 @@
                     <label for="soundGlass"><i aria-hidden="true">◇</i><span><b>Glass</b><small>Bright and minimal</small></span></label>
                     <input class="visually-hidden" id="soundPulse" name="soundId" type="radio" value="pulse" />
                     <label for="soundPulse"><i aria-hidden="true">≋</i><span><b>Pulse</b><small>Three quick tones</small></span></label>
+                    <input class="visually-hidden" id="soundCustom" name="soundId" type="radio" value="custom" disabled />
+                    <label for="soundCustom"><i aria-hidden="true">＋</i><span><b>Custom</b><small id="customSoundName">Import a local sound</small></span></label>
                   </div>
+                  <div class="sound-import-actions">
+                    <button id="clearSound" class="font-clear-button" type="button" hidden>Clear custom</button>
+                    <button id="chooseSound" class="font-import-button" type="button">Import sound</button>
+                  </div>
+                  <input id="customSoundDataUrl" name="customSoundDataUrl" type="hidden" />
+                  <input id="customSoundFileName" name="customSoundFileName" type="hidden" />
+                  <p class="field-hint">MP3, WAV, OGG, M4A, or AAC · up to 6 MB · stored locally</p>
                 </fieldset>
 
                 <fieldset class="control-card sound-level-card">
@@ -266,8 +276,8 @@
         <section id="preview-section" class="preview-panel" aria-labelledby="preview-title">
           <div class="section-heading preview-heading">
             <div>
-              <p class="section-index">02 / PREVIEW</p>
-              <h2 id="preview-title">See it live.</h2>
+              <p class="section-index">LIVE PREVIEW</p>
+              <h2 id="preview-title">ChatGPT</h2>
             </div>
             <span id="imageState" class="image-state">Image ready</span>
           </div>
